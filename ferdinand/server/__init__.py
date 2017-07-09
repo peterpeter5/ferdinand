@@ -1,78 +1,37 @@
 from __future__ import absolute_import, unicode_literals
+
 import json
+
+from aiohttp import web
 
 # problems for ansi aiohttp dispatch of methods get put post
 # error handle
 # hooks for security
+from ferdinand.server.views import TopicView, TopicDetailView
+from aiohttp_swagger import setup_swagger
 
-from aiohttp import web
 
-
-async def index(request):
-    return web.Response(text=json.dumps(dict(key="map")))
-
-async def get_topic_tuple(request):
+def setup_appilation(folder_deepth=3):
     """
-    the url dispatch should match multiple urls need to look for rekursion
-    :param request:
-    :return: list
+
+    :type folder_deepth: int
+    :rtype: web.Application
     """
-    matching_info = dict(request.match_info)
-    return list(matching_info.values())
+    app = web.Application()
 
-async def create_response(content, status):
-    if isinstance(content, dict):
-        content = json.dumps(content)
-    else:
-        content = str(content)
-    return web.Response(text=content, status=status)
+    # adds deepth of possible subscribe patterns
+    base_url = ""
+    for deepth in range(0, folder_deepth):
+        base_url = "%s/{topic%s}" % (base_url, deepth)
+        app.router.add_get(base_url, TopicView)
+        app.router.add_get("%s/" % base_url, TopicView)
+        app.router.add_get("%s/{detail:\d+}" % base_url, TopicDetailView)
+        app.router.add_get("%s/{detail:\d+}/" % base_url, TopicDetailView)
 
-
-class TopicView(web.View):
-
-    async def get(self):
-        """
-
-        :param request:
-        :type topic_path: tuple
-        :return:
-        """
-        topic_path = await get_topic_tuple(self.request)
-        return await create_response({'topic': topic_path}, 200)
-
-    async def post(self):
-        """
-
-        :param request:
-        :type topic_path: tuple
-        :return:
-        """
-        topic_path = await get_topic_tuple(self.request)
-
-        return await create_response({'topic post': topic_path}, 200)
-
-
-class TopicDetailView(web.View):
-
-    async def get(self):
-        topic_path = await get_topic_tuple(self.request)
-        detail_id = topic_path.pop()
-
-        return await create_response({'topic': topic_path, 'detail_id': detail_id}, 200)
-
-    async def put(self):
-        topic_path = await get_topic_tuple(self.request)
-        detail_id = topic_path.pop()
-
-        return await create_response({'topic': topic_path, 'detail_id': detail_id}, 200)
-
-app = web.Application()
-app.router.add_get("/", index)
-app.router.add_get("/{topic}", TopicView)
-app.router.add_get("/{topic}/", TopicView)
-app.router.add_get("/{topic}/{detail}", TopicDetailView)
-app.router.add_get("/{topic}/{detail}/", TopicDetailView)
+    setup_swagger(app, swagger_url="/", api_version="0.0.1", ) # my index will be my swagger path ?
+    return app
 
 if __name__ == '__main__':
     # async call to start
+    app = setup_appilation(4)
     web.run_app(app, port=1234, host="127.0.0.1")

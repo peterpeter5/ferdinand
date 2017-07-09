@@ -1,3 +1,4 @@
 pyrsistent
 aiohttp
+aiohttp-swagger
 aiofiles
